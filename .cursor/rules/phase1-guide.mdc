@@ -1,0 +1,267 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Phase1: バックエンド基盤構築ガイド
+
+## Phase1の目標
+Express.jsを使って最初のWebサーバーを作り、SQLiteデータベースに接続する基盤を構築します。
+
+## 何を作るのか？
+```
+【Phase1の成果物】
+1. 基本的なExpressサーバー（ポート3000で起動）
+2. SQLiteデータベース接続
+3. 基本的なAPIエンドポイント（/api/hello）
+4. 必要なミドルウェアの設定
+```
+
+## なぜこの順序で学ぶのか？
+
+### 1. Express.jsから始める理由
+**Q: なぜExpressを使うのか？**
+- Node.jsだけでサーバーを作ると複雑
+- Expressは「Web開発を簡単にするツール」
+- 世界中で使われている実績豊富なフレームワーク
+
+```javascript
+// ❌ 生のNode.jsでサーバー（複雑）
+const http = require('http');
+const server = http.createServer((req, res) => {
+  // URLを解析して...
+  // HTTPメソッドを判定して...
+  // 大量のコードが必要
+});
+
+// ✅ Expressを使用（シンプル）
+const express = require('express');
+const app = express();
+app.get('/hello', (req, res) => {
+  res.json({ message: 'Hello World' });
+});
+```
+
+### 2. SQLiteを選ぶ理由
+**Q: なぜSQLiteなのか？**
+- **学習目的に最適**: セットアップが簡単
+- **ファイルベース**: 1つのファイルがデータベース
+- **SQL学習**: 標準的なSQL文法
+- **本格的**: 実際のプロダクトでも使用される
+
+```
+【データベース比較】
+MySQL/PostgreSQL: サーバー起動、設定ファイル、権限管理が必要
+SQLite: ファイル1つだけで完結 ← 学習に最適！
+```
+
+## Phase1の実装ステップ
+
+### ステップ1: プロジェクト初期化
+```bash
+# プロジェクト初期化
+npm init -y
+
+# 必要なパッケージをインストール
+npm install express sqlite3 cors
+npm install -D nodemon
+```
+
+**なぜこれらのパッケージなのか？**
+- `express`: Webサーバーフレームワーク
+- `sqlite3`: SQLiteデータベース操作
+- `cors`: 異なるポート間の通信を許可（後のフロントエンド連携用）
+- `nodemon`: コード変更時に自動再起動（開発効率向上）
+
+### ステップ2: 基本的なサーバー構築
+```javascript
+// server.js
+const express = require('express');
+const app = express();
+const PORT = 3000;
+
+// 基本的なエンドポイント
+app.get('/api/hello', (req, res) => {
+  res.json({ 
+    message: 'Hello World',
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`サーバーがポート${PORT}で起動しました`);
+});
+```
+
+**コードの説明:**
+- `express()`: Expressアプリケーションを作成
+- `app.get()`: GETリクエストを処理するルートを定義
+- `res.json()`: JSON形式でレスポンスを返す
+- `app.listen()`: 指定ポートでサーバーを起動
+
+### ステップ3: ミドルウェア設定
+```javascript
+// ミドルウェアの追加
+app.use(express.json());              // JSONボディを解析
+app.use(express.urlencoded({ extended: true })); // フォームデータを解析
+app.use(cors());                      // CORS対応
+```
+
+**ミドルウェアとは？**
+リクエストとレスポンスの間で実行される処理です。
+```
+リクエスト → ミドルウェア1 → ミドルウェア2 → ルート処理 → レスポンス
+```
+
+**なぜ各ミドルウェアが必要なのか？**
+- `express.json()`: フロントエンドからのJSONデータを受け取るため
+- `express.urlencoded()`: フォームデータを処理するため
+- `cors()`: ブラウザのセキュリティ制限を回避するため
+
+### ステップ4: SQLiteデータベース接続
+```javascript
+// config/database.js
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
+
+// データベースファイルのパス
+const dbPath = path.join(__dirname, '../database/todo.db');
+
+// データベース接続
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (err) {
+    console.error('データベース接続エラー:', err.message);
+  } else {
+    console.log('SQLiteデータベースに接続しました');
+  }
+});
+
+module.exports = db;
+```
+
+**コードの説明:**
+- `sqlite3.verbose()`: デバッグ情報を表示
+- `path.join()`: OSに依存しないファイルパスを作成
+- `new sqlite3.Database()`: データベースファイルに接続
+- エラーハンドリングで接続状況を確認
+
+### ステップ5: データベース接続テスト
+```javascript
+// server.js に追加
+const db = require('./config/database');
+
+// データベース接続テストエンドポイント
+app.get('/api/db-test', (req, res) => {
+  db.get('SELECT datetime("now") as current_time', (err, row) => {
+    if (err) {
+      res.status(500).json({ error: 'データベースエラー' });
+    } else {
+      res.json({ 
+        message: 'データベース接続成功',
+        current_time: row.current_time
+      });
+    }
+  });
+});
+```
+
+## Phase1で理解すべきポイント
+
+### 1. Expressの基本構造
+```javascript
+const app = express();  // ← アプリケーション作成
+app.use(ミドルウェア);   // ← 共通処理設定
+app.get(ルート, 処理);   // ← エンドポイント定義
+app.listen(ポート);     // ← サーバー起動
+```
+
+### 2. エラーハンドリングの重要性
+```javascript
+// ❌ エラーを無視（危険）
+db.get(sql, (err, row) => {
+  // errをチェックしない
+  res.json(row);
+});
+
+// ✅ 適切なエラーハンドリング
+db.get(sql, (err, row) => {
+  if (err) {
+    console.error(err);
+    res.status(500).json({ error: 'サーバーエラー' });
+    return;
+  }
+  res.json(row);
+});
+```
+
+### 3. ファイル構成の考え方
+```
+backend/
+├── server.js          ← メイン起動ファイル
+├── config/
+│   └── database.js    ← データベース設定
+├── database/
+│   └── todo.db        ← SQLiteファイル
+└── package.json       ← 依存関係管理
+```
+
+## Phase1の動作確認方法
+
+### 1. サーバー起動
+```bash
+# 開発用（自動再起動）
+npm run dev
+
+# または直接実行
+node server.js
+```
+
+### 2. エンドポイントテスト
+ブラウザで以下にアクセス:
+- `http://localhost:3000/api/hello`
+- `http://localhost:3000/api/db-test`
+
+### 3. 期待される結果
+```json
+// /api/hello の結果
+{
+  "message": "Hello World",
+  "timestamp": "2024-01-01T12:00:00.000Z"
+}
+
+// /api/db-test の結果
+{
+  "message": "データベース接続成功",
+  "current_time": "2024-01-01 12:00:00"
+}
+```
+
+## Phase1完了チェックリスト
+- [ ] Express.jsサーバーが起動する
+- [ ] `http://localhost:3000/api/hello` でレスポンスが返る
+- [ ] SQLiteデータベースに接続できる
+- [ ] `/api/db-test` でデータベース接続確認ができる
+- [ ] コード変更時にnodemonで自動再起動される
+- [ ] エラーが発生した時に適切なエラーメッセージが表示される
+
+## よくある問題と解決方法
+
+### 問題1: サーバーが起動しない
+```bash
+# ポートが既に使用されている場合
+Error: listen EADDRINUSE :::3000
+```
+**解決方法:** 別のポートを使用するか、使用中のプロセスを終了
+
+### 問題2: SQLiteファイルが作成されない
+**解決方法:** database フォルダが存在するか確認
+
+### 問題3: CORSエラー
+```
+Access to fetch at 'http://localhost:3000' from origin 'http://localhost:5173' has been blocked by CORS policy
+```
+**解決方法:** `app.use(cors())` が設定されているか確認
+
+## 次のPhase2への準備
+Phase1が完了したら、認証システムの実装（Phase2）に進みます。
+現在の基盤の上に、ユーザー管理とセッション機能を追加していきます。
