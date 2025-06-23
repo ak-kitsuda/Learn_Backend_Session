@@ -1,0 +1,209 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Phase2: 認証システム実装ガイド
+
+## Phase2の目標
+セッション/クッキーベースの認証システムを実装し、ユーザーの登録・ログイン・ログアウト機能を構築します。
+
+## 何を作るのか？
+```
+【Phase2の成果物】
+1. ユーザーテーブル（users）の作成
+2. パスワードハッシュ化システム（bcrypt使用）
+3. セッション管理システム（express-session）
+4. 認証API（登録・ログイン・ログアウト）
+5. 認証ミドルウェア（認証状態チェック）
+```
+
+## なぜセッション/クッキー認証なのか？
+
+### セッション認証の特徴
+- **サーバーサイド管理**: サーバーがセッション情報を保存
+- **クッキーでセッションID送信**: ブラウザが自動的にセッションIDを送信
+- **即座な無効化**: サーバー側でセッションを削除すれば即座にログアウト
+- **セキュリティ**: セッションIDのみがクライアントに保存される
+
+### JWTとの違い
+| 項目 | セッション/クッキー | JWT |
+|------|-------------------|-----|
+| 状態管理 | サーバーサイド | ステートレス |
+| 保存場所 | サーバー（DB/メモリ） | クライアント |
+| 無効化 | 即座に可能 | 困難（有効期限まで） |
+| サーバー負荷 | 高（セッション管理） | 低（検証のみ） |
+| スケーラビリティ | 低 | 高 |
+
+## Phase2の実装ステップ
+
+### ステップ1: 必要なパッケージのインストール
+```bash
+npm install bcrypt express-session connect-sqlite3
+```
+
+**パッケージの説明:**
+- `bcrypt`: パスワードハッシュ化ライブラリ
+- `express-session`: Express用セッション管理
+- `connect-sqlite3`: SQLiteセッションストア
+
+### ステップ2: ユーザーテーブルの作成
+```sql
+CREATE TABLE users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT UNIQUE NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### ステップ3: セッション設定
+```javascript
+const session = require('express-session');
+const SQLiteStore = require('connect-sqlite3')(session);
+
+app.use(session({
+  store: new SQLiteStore({ db: 'sessions.db' }),
+  secret: 'your-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: 24 * 60 * 60 * 1000, // 24時間
+    httpOnly: true,
+    secure: false // 開発環境ではfalse
+  }
+}));
+```
+
+### ステップ4: 認証API実装
+- `POST /api/auth/register` - ユーザー登録
+- `POST /api/auth/login` - ログイン
+- `POST /api/auth/logout` - ログアウト
+- `GET /api/auth/me` - 現在のユーザー情報取得
+
+### ステップ5: 認証ミドルウェア
+```javascript
+const requireAuth = (req, res, next) => {
+  if (req.session && req.session.userId) {
+    next();
+  } else {
+    res.status(401).json({ error: '認証が必要です' });
+  }
+};
+```
+
+## セキュリティ考慮事項
+
+### 1. パスワードハッシュ化
+```javascript
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
+
+// ハッシュ化
+const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+// 検証
+const isValid = await bcrypt.compare(password, hashedPassword);
+```
+
+### 2. セッション設定
+- `httpOnly: true` - XSS攻撃対策
+- `secure: true` - HTTPS必須（本番環境）
+- `sameSite: 'strict'` - CSRF攻撃対策
+
+### 3. 入力検証
+- ユーザー名: 英数字のみ、3-20文字
+- メールアドレス: 正規表現による検証
+- パスワード: 8文字以上、英数字記号組み合わせ
+
+## 実装の流れ
+
+### Phase2-1: データベース設計
+1. ユーザーテーブル作成
+2. テーブル構造の確認
+3. 初期データ投入テスト
+
+### Phase2-2: パスワードハッシュ化
+1. bcryptの導入
+2. ハッシュ化関数の実装
+3. 検証関数の実装
+
+### Phase2-3: セッション管理
+1. express-sessionの設定
+2. セッションストアの設定
+3. セッション動作確認
+
+### Phase2-4: 認証API実装
+1. ユーザー登録API
+2. ログインAPI
+3. ログアウトAPI
+4. ユーザー情報取得API
+
+### Phase2-5: 認証ミドルウェア
+1. 認証チェック関数
+2. 保護されたルートの実装
+3. エラーハンドリング
+
+## 動作確認方法
+
+**詳細な確認手順**: [user-verification-commands.mdc](mdc:user-verification-commands.mdc)を参照
+
+### 1. ユーザー登録テスト
+```bash
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","email":"test@example.com","password":"password123"}'
+```
+
+### 2. ログインテスト
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","password":"password123"}' \
+  -c cookies.txt
+```
+
+### 3. 認証確認テスト
+```bash
+curl -X GET http://localhost:3000/api/auth/me \
+  -b cookies.txt
+```
+
+**より詳細な動作確認**: データベース状態確認、エラーパターンと対応、入力/出力の詳細解説については、上記の詳細確認手順ルールを参照してください。
+
+## Phase2完了チェックリスト
+- [ ] 必要なパッケージがインストールされている
+- [ ] usersテーブルが作成されている
+- [ ] パスワードハッシュ化が機能している
+- [ ] セッション管理が動作している
+- [ ] ユーザー登録APIが機能している
+- [ ] ログインAPIが機能している
+- [ ] ログアウトAPIが機能している
+- [ ] 認証ミドルウェアが機能している
+- [ ] セッションがブラウザに保存されている
+- [ ] 認証状態が適切に管理されている
+
+## よくある問題と解決方法
+
+### 問題1: セッションが保存されない
+**原因**: セッション設定の問題
+**解決方法**: 
+- `resave: false`の確認
+- `saveUninitialized: false`の確認
+- セッションストアの設定確認
+
+### 問題2: パスワードハッシュ化エラー
+**原因**: bcryptの非同期処理
+**解決方法**: async/awaitまたはPromiseの適切な使用
+
+### 問題3: CORS関連エラー
+**原因**: セッションクッキーのCORS設定
+**解決方法**: 
+- `credentials: true`の設定
+- 適切なオリジンの設定
+
+## 次のPhase3への準備
+Phase2完了後は、認証システムを使ってTodo機能を実装します。
+認証されたユーザーのみがTodoを作成・編集・削除できるシステムを構築していきます。
