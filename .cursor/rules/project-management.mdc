@@ -107,6 +107,23 @@ alwaysApply: true
    - クッキー送信設定の確認
    - APIエンドポイントの確認
 
+## セキュリティ・品質管理
+
+### コミット前の必須チェック
+参照: [git-security-check.mdc](mdc:git-security-check.mdc)
+- [ ] 個人情報流出チェック完了
+- [ ] 機密情報除去確認
+- [ ] .gitignore設定確認
+- [ ] セキュリティスキャン実行
+
+### セキュリティチェックコマンド
+```bash
+# 危険な文字列の検索
+grep -r "password\|api_key\|secret" --include="*.js" .
+# 個人情報の検索  
+grep -r "@gmail\|@yahoo" --include="*.js" --include="*.md" .
+```
+
 ## 学習目標達成確認
 
 ### 理解度チェック
