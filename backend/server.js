@@ -1,6 +1,9 @@
 // Express.jsを読み込み
 const express = require('express');
 const cors = require('cors');
+const bcrypt = require('bcrypt');
+const session = require('express-session');
+const SQLiteStore = require('connect-sqlite3')(session);
 
 // データベース接続を読み込み
 const db = require('./config/database');
@@ -11,10 +14,29 @@ const app = express();
 // サーバーが動くポート番号を設定
 const PORT = 3000;
 
+// セッション設定
+app.use(session({
+  store: new SQLiteStore({ 
+    db: 'sessions.db',
+    dir: './database'
+  }),
+  secret: 'your-learning-session-secret-key-2024', // 学習用のシークレットキー
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: 24 * 60 * 60 * 1000, // 24時間
+    httpOnly: true,
+    secure: false // 開発環境ではfalse（本番環境ではtrue）
+  }
+}));
+
 // ミドルウェアの設定
 app.use(express.json());              // JSONデータを解析できるようにする
 app.use(express.urlencoded({ extended: true })); // フォームデータを解析できるようにする
-app.use(cors());                      // 異なるポート間の通信を許可（フロントエンド連携用）
+app.use(cors({
+  origin: 'http://localhost:8080', // フロントエンドのURL
+  credentials: true // セッションクッキーを送信するために必要
+}));                      
 
 // 最初のエンドポイント（APIの入り口）を作成
 // GET /api/hello にアクセスした時の処理
