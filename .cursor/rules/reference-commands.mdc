@@ -1,0 +1,73 @@
+---
+description: 参照用コマンド集 - 必要時のみ参照
+globs: 
+alwaysApply: false
+---
+# 基本コマンド集 - Agent Request
+
+> **用途**: 日常的な確認作業で使用する基本コマンド
+
+## データベース確認
+
+```bash
+# ファイル存在確認
+ls -la backend/database/
+
+# テーブル一覧
+sqlite3 backend/database/todo.db ".tables"
+
+# テーブル構造
+sqlite3 backend/database/todo.db ".schema users"
+
+# データ確認
+sqlite3 backend/database/todo.db "SELECT * FROM users LIMIT 5;"
+
+# スクリプト実行
+node backend/scripts/check-tables.js
+```
+
+## API確認
+
+```bash
+# サーバー起動確認
+curl http://localhost:3000/api/hello
+
+# DB接続確認
+curl http://localhost:3000/api/db-test
+
+# ユーザー登録（Phase2）
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","email":"test@example.com","password":"password123"}'
+
+# ログイン（Phase2）
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","password":"password123"}' \
+  -c cookies.txt
+
+# 認証確認（Phase2）
+curl -X GET http://localhost:3000/api/auth/me -b cookies.txt
+```
+
+## サーバー管理
+
+```bash
+# プロセス確認
+ps aux | grep node
+
+# ポート使用確認
+netstat -tlnp | grep 3000
+
+# サーバー起動
+cd backend && npm run dev
+
+# サーバー停止
+pkill -f "node.*server.js"
+```
+
+## よくある問題と対処
+- **接続エラー**: サーバー起動状態を確認
+- **ポートエラー**: 3000番ポートの使用状況を確認
+- **JSONエラー**: Content-Type設定を確認
+- **認証エラー**: セッション・クッキー設定を確認

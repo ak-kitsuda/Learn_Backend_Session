@@ -1,0 +1,44 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# コアルール - Manual（常時適用）
+
+## プロジェクト基本情報
+- **目的**: セッション/クッキーベース認証の学習
+- **技術スタック**: Express.js + SQLite + Vue.js
+- **学習レベル**: 初心者向け
+- **対比学習**: JWTとの違いを明確化
+
+## 現在の進捗状況
+**Phase2**: 認証システム実装中
+- ✅ Phase1: バックエンド基盤構築（完了）
+- ✅ ユーザーテーブル作成（完了）
+- 🔄 認証API実装（進行中）
+
+## セキュリティルール（必須）
+
+### Git コミット前チェック
+```bash
+# 危険な文字列検索（必須実行）
+grep -r "password\|api_key\|secret\|token" --include="*.js" .
+grep -r "@gmail\|@yahoo" --include="*.js" --include="*.md" .
+```
+
+### デモコード管理
+- **命名規則**: `/api/demo-*`, `demo_*`, `*Demo`
+- **学習完了後は必ずクリーンアップ実行**
+
+## 重要な制約
+- **技術スタックのバージョン変更禁止**
+- **UI/UX変更は事前承認必要**
+- **明示的指示のない変更は提案→承認**
+
+## Agent Request用ファイル（必要時に指定）
+- `phase1-guide.mdc`: Phase1詳細ガイド（完了済み参考用）
+- `phase2-guide.mdc`: Phase2実装ガイド（現在のフェーズ）
+- `reference-commands.mdc`: 基本コマンド集
+- `user-verification-commands.mdc`: 詳細動作確認手順
+- `git-security-check.mdc`: セキュリティ詳細ガイド
+- `demo-code-guidelines.mdc`: デモコード管理詳細
