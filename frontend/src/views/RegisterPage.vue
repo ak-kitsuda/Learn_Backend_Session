@@ -119,71 +119,73 @@ const loading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 
-// バリデーション関数
-const validateForm = () => {
-  // ユーザー名の長さチェック
-  if (registerForm.value.username.length < 3) {
+// 登録処理
+const handleRegister = async () => {
+  // バリデーション
+  if (!registerForm.value.username.trim()) {
+    errorMessage.value = 'ユーザー名を入力してください'
+    return
+  }
+  
+  if (registerForm.value.username.trim().length < 3) {
     errorMessage.value = 'ユーザー名は3文字以上で入力してください'
-    return false
+    return
+  }
+
+  if (!registerForm.value.email.trim()) {
+    errorMessage.value = 'メールアドレスを入力してください'
+    return
   }
 
   // メールアドレスの形式チェック
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  if (!emailRegex.test(registerForm.value.email)) {
+  if (!emailRegex.test(registerForm.value.email.trim())) {
     errorMessage.value = '有効なメールアドレスを入力してください'
-    return false
-  }
-
-  // パスワードの長さチェック
-  if (registerForm.value.password.length < 6) {
-    errorMessage.value = 'パスワードは6文字以上で入力してください'
-    return false
-  }
-
-  // パスワード確認チェック
-  if (registerForm.value.password !== registerForm.value.confirmPassword) {
-    errorMessage.value = 'パスワードが一致しません'
-    return false
-  }
-
-  return true
-}
-
-// 登録処理
-const handleRegister = async () => {
-  loading.value = true
-  errorMessage.value = ''
-  successMessage.value = ''
-
-  // フロントエンドバリデーション
-  if (!validateForm()) {
-    loading.value = false
     return
   }
 
+  if (!registerForm.value.password.trim()) {
+    errorMessage.value = 'パスワードを入力してください'
+    return
+  }
+  
+  if (registerForm.value.password.length < 6) {
+    errorMessage.value = 'パスワードは6文字以上で入力してください'
+    return
+  }
+
+  if (registerForm.value.password !== registerForm.value.confirmPassword) {
+    errorMessage.value = 'パスワードが一致しません'
+    return
+  }
+
+  loading.value = true
+  errorMessage.value = ''
+
   try {
     const result = await authService.register({
-      username: registerForm.value.username,
-      email: registerForm.value.email,
+      username: registerForm.value.username.trim(),
+      email: registerForm.value.email.trim(),
       password: registerForm.value.password
     })
-    
+
     if (result.success) {
-      // 登録成功
-      successMessage.value = 'ユーザー登録が完了しました！ログインページに移動します...'
+      // 認証状態とユーザー情報をローカルストレージに保存
+      localStorage.setItem('isAuthenticated', 'true')
+      if (result.user) {
+        localStorage.setItem('user', JSON.stringify(result.user))
+      }
       
-      // 2秒後にログインページに遷移
+      successMessage.value = 'ユーザー登録が完了しました！Todo一覧ページに移動します...'
+      
       setTimeout(() => {
-        router.push('/login')
+        router.replace('/todos')
       }, 2000)
-      
-      console.log('✅ 登録成功:', result.user)
     } else {
-      // 登録失敗
       errorMessage.value = result.error
     }
   } catch (error) {
-    errorMessage.value = 'ユーザー登録処理でエラーが発生しました'
+    errorMessage.value = 'ユーザー登録に失敗しました。しばらく経ってから再度お試しください。'
     console.error('登録エラー:', error)
   } finally {
     loading.value = false

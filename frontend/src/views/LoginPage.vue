@@ -83,31 +83,44 @@ const loginForm = ref({
 
 const loading = ref(false)
 const errorMessage = ref('')
+const successMessage = ref('')
 
 // ログイン処理
 const handleLogin = async () => {
+  if (!loginForm.value.username.trim() || !loginForm.value.password.trim()) {
+    errorMessage.value = 'ユーザー名とパスワードを入力してください'
+    return
+  }
+
   loading.value = true
   errorMessage.value = ''
 
   try {
-    const result = await authService.login(loginForm.value)
-    
+    const result = await authService.login({
+      username: loginForm.value.username.trim(),
+      password: loginForm.value.password.trim()
+    })
+
     if (result.success) {
-      // ログイン成功
+      // 認証状態とユーザー情報をローカルストレージに保存
       localStorage.setItem('isAuthenticated', 'true')
-      localStorage.setItem('user', JSON.stringify(result.user))
+      if (result.user) {
+        localStorage.setItem('user', JSON.stringify(result.user))
+      }
       
-      // リダイレクト先の確認
-      const redirectPath = route.query.redirect || '/todos'
-      router.push(redirectPath)
+      successMessage.value = 'ログインしました！Todo一覧ページに移動します...'
       
-      console.log('✅ ログイン成功:', result.user)
+      setTimeout(() => {
+        // リダイレクト先を確認
+        const redirectPath = route.query.redirect || '/todos'
+        // クエリパラメータをクリアするために replace を使用
+        router.replace(redirectPath)
+      }, 1500)
     } else {
-      // ログイン失敗
       errorMessage.value = result.error
     }
   } catch (error) {
-    errorMessage.value = 'ログイン処理でエラーが発生しました'
+    errorMessage.value = 'ログインに失敗しました。しばらく経ってから再度お試しください。'
     console.error('ログインエラー:', error)
   } finally {
     loading.value = false

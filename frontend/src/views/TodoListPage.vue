@@ -5,7 +5,7 @@
       <div class="header-content">
         <h1 class="app-title">📝 Todo App</h1>
         <div class="user-info">
-          <span class="welcome-text">こんにちは！</span>
+          <span class="welcome-text">こんにちは、{{ user?.username || 'ゲスト' }}さん！</span>
           <button @click="handleLogout" class="logout-button">
             🚪 ログアウト
           </button>
@@ -20,17 +20,26 @@
         <div class="create-todo-section">
           <h2 class="section-title">✨ 新しいTodoを作成</h2>
           <form @submit.prevent="handleCreateTodo" class="create-form">
+            <div class="form-group">
+              <input
+                v-model="newTodo.title"
+                type="text"
+                class="form-input"
+                placeholder="Todoのタイトルを入力..."
+                required
+                :disabled="loading"
+              />
+            </div>
+            <div class="form-group">
+              <textarea
+                v-model="newTodo.description"
+                class="form-textarea"
+                placeholder="詳細な説明（任意）"
+                rows="2"
+                :disabled="loading"
+              ></textarea>
+            </div>
             <div class="form-row">
-              <div class="form-group flex-1">
-                <input
-                  v-model="newTodo.title"
-                  type="text"
-                  class="form-input"
-                  placeholder="Todoのタイトルを入力..."
-                  required
-                  :disabled="loading"
-                />
-              </div>
               <div class="form-group">
                 <select
                   v-model="newTodo.priority"
@@ -48,17 +57,8 @@
                 :disabled="loading || !newTodo.title.trim()"
               >
                 <span v-if="loading">🔄</span>
-                <span v-else>➕</span>
+                <span v-else>➕ 追加</span>
               </button>
-            </div>
-            <div class="form-group">
-              <textarea
-                v-model="newTodo.description"
-                class="form-textarea"
-                placeholder="詳細な説明（任意）"
-                rows="2"
-                :disabled="loading"
-              ></textarea>
             </div>
           </form>
         </div>
@@ -115,8 +115,8 @@
                     class="toggle-button"
                     :disabled="loading"
                   >
-                    <span v-if="todo.completed">✅</span>
-                    <span v-else>⭕</span>
+                    <span v-if="todo.completed">↩️</span>
+                    <span v-else>⚪</span>
                   </button>
                   <h3 class="todo-title" :class="{ 'completed': todo.completed }">
                     {{ todo.title }}
@@ -170,6 +170,7 @@ const router = useRouter()
 
 // リアクティブデータ
 const todos = ref([])
+const user = ref(null)
 const newTodo = ref({
   title: '',
   description: '',
@@ -204,10 +205,28 @@ const pendingCount = computed(() => {
 
 // ライフサイクル
 onMounted(async () => {
+  await loadUserInfo()
   await loadTodos()
 })
 
 // メソッド
+const loadUserInfo = async () => {
+  try {
+    const result = await authService.checkAuth()
+    if (result.success && result.user) {
+      user.value = result.user
+    } else {
+      // 認証情報が取得できない場合はローカルストレージから取得を試行
+      const storedUser = localStorage.getItem('user')
+      if (storedUser) {
+        user.value = JSON.parse(storedUser)
+      }
+    }
+  } catch (error) {
+    console.error('ユーザー情報取得エラー:', error)
+  }
+}
+
 const loadTodos = async () => {
   loading.value = true
   errorMessage.value = ''
@@ -398,28 +417,30 @@ const formatDate = (dateString) => {
 }
 
 .todo-main {
-  padding: 2rem 0;
+  padding: 20px;
+  max-width: 800px;
+  margin: 0 auto;
 }
 
 .todo-container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 0 20px;
-}
-
-.create-todo-section {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .section-title {
   font-size: 1.2rem;
   font-weight: bold;
   color: #333;
-  margin: 0 0 16px 0;
+  margin-bottom: 12px;
+}
+
+/* Todo作成フォーム */
+.create-todo-section {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .create-form {
@@ -428,22 +449,19 @@ const formatDate = (dateString) => {
   gap: 12px;
 }
 
-.form-row {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-}
-
 .form-group {
   display: flex;
   flex-direction: column;
 }
 
-.flex-1 {
-  flex: 1;
+.form-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
 }
 
-.form-input, .form-select, .form-textarea {
+.form-input {
+  width: 100%;
   padding: 12px;
   border: 2px solid #e2e8f0;
   border-radius: 8px;
@@ -451,66 +469,94 @@ const formatDate = (dateString) => {
   transition: border-color 0.3s ease;
 }
 
-.form-input:focus, .form-select:focus, .form-textarea:focus {
+.form-input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #4299e1;
 }
 
 .form-textarea {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 1rem;
   resize: vertical;
   min-height: 60px;
+  font-family: inherit;
+  transition: border-color 0.3s ease;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: #4299e1;
+}
+
+.form-select {
+  padding: 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 1rem;
+  background-color: white;
+  cursor: pointer;
+  transition: border-color 0.3s ease;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: #4299e1;
 }
 
 .create-button {
-  padding: 12px 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 12px 24px;
+  background-color: #4299e1;
   color: white;
   border: none;
   border-radius: 8px;
+  font-size: 1rem;
   cursor: pointer;
-  font-size: 1.2rem;
-  transition: transform 0.2s ease;
+  white-space: nowrap;
+  transition: background-color 0.3s ease;
 }
 
 .create-button:hover:not(:disabled) {
-  transform: translateY(-2px);
+  background-color: #3182ce;
 }
 
 .create-button:disabled {
-  opacity: 0.5;
+  background-color: #a0aec0;
   cursor: not-allowed;
-  transform: none;
 }
 
+/* エラーメッセージ */
 .error-message {
   background-color: #fed7d7;
   color: #c53030;
   padding: 12px;
   border-radius: 8px;
-  margin-bottom: 20px;
+  border-left: 4px solid #e53e3e;
 }
 
+/* Todo統計 */
 .todo-stats {
   display: flex;
-  gap: 16px;
-  margin-bottom: 24px;
-  justify-content: center;
+  gap: 20px;
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .stat-item {
-  background: white;
-  padding: 16px;
-  border-radius: 12px;
-  text-align: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  min-width: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 
 .stat-number {
-  display: block;
   font-size: 2rem;
   font-weight: bold;
-  color: #667eea;
+  color: #4299e1;
 }
 
 .stat-label {
@@ -518,16 +564,17 @@ const formatDate = (dateString) => {
   color: #666;
 }
 
+/* Todo一覧 */
 .todo-list-section {
   background: white;
+  padding: 20px;
   border-radius: 12px;
-  padding: 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .loading-message, .empty-message {
   text-align: center;
-  padding: 40px;
+  padding: 40px 20px;
   color: #666;
 }
 
@@ -544,17 +591,21 @@ const formatDate = (dateString) => {
 .todo-item {
   display: flex;
   align-items: flex-start;
-  gap: 16px;
+  gap: 12px;
   padding: 16px;
-  background: #f8f9fa;
+  border: 2px solid #e2e8f0;
   border-radius: 8px;
-  border-left: 4px solid #667eea;
   transition: all 0.3s ease;
 }
 
+.todo-item:hover {
+  border-color: #cbd5e0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
 .todo-item.completed {
-  opacity: 0.7;
-  border-left-color: #48bb78;
+  background-color: #f7fafc;
+  border-color: #cbd5e0;
 }
 
 .todo-content {
@@ -571,7 +622,7 @@ const formatDate = (dateString) => {
 .toggle-button {
   background: none;
   border: none;
-  font-size: 1.2rem;
+  font-size: 1.5rem;
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
@@ -579,7 +630,7 @@ const formatDate = (dateString) => {
 }
 
 .toggle-button:hover {
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: #e2e8f0;
 }
 
 .todo-title {
@@ -588,11 +639,12 @@ const formatDate = (dateString) => {
   font-weight: 600;
   color: #333;
   margin: 0;
+  transition: all 0.3s ease;
 }
 
 .todo-title.completed {
   text-decoration: line-through;
-  color: #666;
+  color: #a0aec0;
 }
 
 .todo-priority {
@@ -601,15 +653,20 @@ const formatDate = (dateString) => {
 
 .todo-description {
   color: #666;
-  margin: 8px 0;
+  margin: 8px 0 0 48px;
   line-height: 1.5;
 }
 
 .todo-meta {
+  margin-top: 8px;
+  margin-left: 48px;
   display: flex;
   gap: 16px;
+}
+
+.todo-date {
   font-size: 0.8rem;
-  color: #999;
+  color: #a0aec0;
 }
 
 .todo-actions {
@@ -623,7 +680,7 @@ const formatDate = (dateString) => {
   border: none;
   font-size: 1.2rem;
   cursor: pointer;
-  padding: 8px;
+  padding: 4px 8px;
   border-radius: 4px;
   transition: background-color 0.3s ease;
 }
@@ -635,26 +692,65 @@ const formatDate = (dateString) => {
 /* レスポンシブ対応 */
 @media (max-width: 768px) {
   .header-content {
+    padding: 0 16px;
     flex-direction: column;
     gap: 12px;
     text-align: center;
   }
-
+  
+  .todo-main {
+    padding: 16px;
+  }
+  
   .form-row {
     flex-direction: column;
+    gap: 12px;
   }
-
+  
   .todo-stats {
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 12px;
   }
-
+  
+  .stat-item {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+  
   .todo-item {
     flex-direction: column;
-    align-items: stretch;
+    gap: 12px;
   }
+  
+  .todo-actions {
+    flex-direction: row;
+    align-self: flex-end;
+  }
+  
+  .todo-meta {
+    margin-left: 0;
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .todo-description {
+    margin-left: 0;
+  }
+}
 
-  .todo-header-row {
-    flex-wrap: wrap;
+@media (max-width: 480px) {
+  .user-info {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .welcome-text {
+    font-size: 0.8rem;
+  }
+  
+  .logout-button {
+    font-size: 0.8rem;
+    padding: 6px 12px;
   }
 }
 </style> 
